@@ -63,7 +63,7 @@ router.post("/books", async (req, res) => {
     res.json(error);
   }
 
-  res.json({status: "success"});
+  res.json(data);
 });
 
 /**
@@ -80,7 +80,7 @@ router.post("/books", async (req, res) => {
     res.json(error);
   }
 
-  res.json({status: "success"});
+  res.json(data);
 });
 
 /**
