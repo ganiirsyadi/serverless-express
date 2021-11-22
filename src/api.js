@@ -14,6 +14,7 @@ const createClient = sb.createClient;
 
 const dotenv = require("dotenv");
 const { getAccessToken } = require("./lib/auth");
+const { postProcessBooksData } = require("./lib/books");
 dotenv.config();
 
 const supabase = createClient(
@@ -25,10 +26,19 @@ const supabase = createClient(
  * Get all books
  */
 router.get("/books", async (req, res) => {
+  const accessToken = getAccessToken(req);
+
   let { data, error } = await supabase
     .from("books")
     .select(`*, user_vote (user_id, vote)`)
-    .order("likeCount", { ascending: false });
+    .order("title");
+
+  if (accessToken) {
+    const user = await supabase.auth.api.getUser(accessToken);
+    data = postProcessBooksData(data, user.user.id);
+  } else {
+    data = postProcessBooksData(data, null);
+  }
 
   if (error) {
     res.status(500);
@@ -51,13 +61,21 @@ router.post("/books", async (req, res) => {
     return;
   }
 
-  let { data, error } = await supabase.from("books").insert(req.body).select(`*, user_vote (user_id, vote)`).single();
+  const user = await supabase.auth.api.getUser(accessToken);
+
+  let { data, error } = await supabase
+    .from("books")
+    .insert(req.body)
+    .select(`*, user_vote (user_id, vote)`)
+    .single();
 
   if (error) {
     res.status(500);
     res.json(error);
     return;
   }
+
+  data = postProcessBooksData(data, user.user.id);
 
   res.json(data);
 });
@@ -83,7 +101,7 @@ router.patch("/books/like", async (req, res) => {
     .single();
 
   if (!vote.data) {
-    let { data, error } = await supabase
+    let { error } = await supabase
       .from("user_vote")
       .insert({ user_id: user.user.id, book: bookId, vote: 1 });
 
@@ -111,13 +129,19 @@ router.patch("/books/like", async (req, res) => {
     }
   }
 
-  let { data, error } = await supabase.rpc("increment", { book_id: bookId }).select(`*, user_vote (user_id, vote)`);
+  let { data, error } = await supabase
+    .from("books")
+    .select(`*, user_vote (user_id, vote)`)
+    .match({id: bookId})
+    .single()
 
   if (error) {
     res.status(500);
     res.json(error);
     return;
   }
+
+  data = postProcessBooksData(data, user.user.id);
 
   res.json(data);
 });
@@ -156,28 +180,35 @@ router.patch("/books/dislike", async (req, res) => {
     if (vote.data.vote <= -1) {
       res.status(500);
       res.json({ error: "Already disliked the book" });
-      return
+      return;
     }
 
     let { error } = await supabase
       .from("user_vote")
       .update({ vote: vote.data.vote - 1 })
-      .match({ user_id: user.user.id, book: bookId });
+      .match({ user_id: user.user.id, book: bookId })
 
     if (error) {
       res.status(500);
       res.json(error);
       return;
     }
+
   }
 
-  let { data, error } = await supabase.rpc("decrement", { book_id: bookId }).select(`*, user_vote (user_id, vote)`);
+  let { data, error } = await supabase
+    .from("books")
+    .select(`*, user_vote (user_id, vote)`)
+    .match({id: bookId})
+    .single()
 
   if (error) {
     res.status(500);
     res.json(error);
     return;
   }
+
+  data = postProcessBooksData(data, user.user.id);
 
   res.json(data);
 });
