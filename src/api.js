@@ -25,12 +25,15 @@ const supabase = createClient(
  * Get all books
  */
 router.get("/books", async (req, res) => {
-  let { data, error } = await supabase.from("books").select(`*, user_vote (vote)`).order("likeCount", {ascending: false});
+  let { data, error } = await supabase
+    .from("books")
+    .select(`*, user_vote (vote)`)
+    .order("likeCount", { ascending: false });
 
   if (error) {
     res.status(500);
     res.json(error);
-    return
+    return;
   }
 
   res.json(data);
@@ -40,21 +43,20 @@ router.get("/books", async (req, res) => {
  * Create a new book
  */
 router.post("/books", async (req, res) => {
-
   const accessToken = getAccessToken(req);
 
   if (!accessToken) {
     res.status(403);
     res.json({ error: "Not Authorized" });
-    return
+    return;
   }
 
-  let { data, error } = await supabase.from("books").insert(req.body).single();
+  let { data, error } = await supabase.from("books").insert(req.body).select(`*, user_vote (vote)`).single();
 
   if (error) {
     res.status(500);
     res.json(error);
-    return
+    return;
   }
 
   res.json(data);
@@ -69,7 +71,7 @@ router.patch("/books/like", async (req, res) => {
   if (!accessToken) {
     res.status(403);
     res.json({ error: "Not Authorized" });
-    return
+    return;
   }
 
   const user = await supabase.auth.api.getUser(accessToken);
@@ -81,35 +83,40 @@ router.patch("/books/like", async (req, res) => {
     .single();
 
   if (!vote.data) {
-    let { error } = await supabase.from("user_vote").insert({user_id: user.user.id, book: bookId, vote: 1});
+    let { data, error } = await supabase
+      .from("user_vote")
+      .insert({ user_id: user.user.id, book: bookId, vote: 1 });
 
     if (error) {
       res.status(500);
       res.json(error);
-      return
+      return;
     }
   } else {
-    if (vote.data.vote === 1) {
+    if (vote.data.vote >= 1) {
       res.status(500);
-      res.json({"error": "Already liked the book"});
-      return
+      res.json({ error: "Already liked the book" });
+      return;
     }
 
-    let { error } = await supabase.from("user_vote").update({vote: vote.data.vote + 1}).match({user_id: user.user.id, book: bookId});
+    let { error } = await supabase
+      .from("user_vote")
+      .update({ vote: vote.data.vote + 1 })
+      .match({ user_id: user.user.id, book: bookId });
 
     if (error) {
       res.status(500);
       res.json(error);
-      return
+      return;
     }
   }
 
-  let { data, error } = await supabase.rpc("increment", { book_id: bookId });
+  let { data, error } = await supabase.rpc("increment", { book_id: bookId }).select(`*, user_vote (vote)`);
 
   if (error) {
     res.status(500);
     res.json(error);
-    return
+    return;
   }
 
   res.json(data);
@@ -124,7 +131,7 @@ router.patch("/books/dislike", async (req, res) => {
   if (!accessToken) {
     res.status(403);
     res.json({ error: "Not Authorized" });
-    return
+    return;
   }
 
   const user = await supabase.auth.api.getUser(accessToken);
@@ -136,34 +143,40 @@ router.patch("/books/dislike", async (req, res) => {
     .single();
 
   if (!vote.data) {
-    let { error } = await supabase.from("user_vote").insert({user_id: user.user.id, book: bookId, vote: -1});
+    let { error } = await supabase
+      .from("user_vote")
+      .insert({ user_id: user.user.id, book: bookId, vote: -1 });
 
     if (error) {
       res.status(500);
       res.json(error);
-      return
+      return;
     }
   } else {
-    if (!vote.data.isLike) {
+    if (vote.data.vote <= -1) {
       res.status(500);
-      res.json({"error": "Already disliked the book"});
+      res.json({ error: "Already disliked the book" });
+      return
     }
 
-    let { error } = await supabase.from("user_vote").update({vote: vote.data.vote - 1}).match({user_id: user.user.id, book: bookId});
+    let { error } = await supabase
+      .from("user_vote")
+      .update({ vote: vote.data.vote - 1 })
+      .match({ user_id: user.user.id, book: bookId });
 
     if (error) {
       res.status(500);
       res.json(error);
-      return
+      return;
     }
   }
 
-  let { data, error } = await supabase.rpc("decrement", { book_id: bookId });
+  let { data, error } = await supabase.rpc("decrement", { book_id: bookId }).select(`*, user_vote (vote)`);
 
   if (error) {
     res.status(500);
     res.json(error);
-    return
+    return;
   }
 
   res.json(data);
