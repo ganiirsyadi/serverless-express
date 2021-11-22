@@ -12,7 +12,8 @@ const processSingleBook = (book, userId) => {
 
 export const postProcessBooksData = (data, userId) => {
   if (Array.isArray(data)) {
-    return data.map((book) => processSingleBook(book, userId));
+    const unOrdered = data.map((book) => processSingleBook(book, userId));
+    return unOrdered.sort((a,b) => b.likeCount - a.likeCount)
   } else {
     return processSingleBook(data, userId)
   }
