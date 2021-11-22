@@ -27,7 +27,7 @@ const supabase = createClient(
 router.get("/books", async (req, res) => {
   let { data, error } = await supabase
     .from("books")
-    .select(`*, user_vote (vote)`)
+    .select(`*, user_vote (user_id, vote)`)
     .order("likeCount", { ascending: false });
 
   if (error) {
@@ -51,7 +51,7 @@ router.post("/books", async (req, res) => {
     return;
   }
 
-  let { data, error } = await supabase.from("books").insert(req.body).select(`*, user_vote (vote)`).single();
+  let { data, error } = await supabase.from("books").insert(req.body).select(`*, user_vote (user_id, vote)`).single();
 
   if (error) {
     res.status(500);
@@ -111,7 +111,7 @@ router.patch("/books/like", async (req, res) => {
     }
   }
 
-  let { data, error } = await supabase.rpc("increment", { book_id: bookId }).select(`*, user_vote (vote)`);
+  let { data, error } = await supabase.rpc("increment", { book_id: bookId }).select(`*, user_vote (user_id, vote)`);
 
   if (error) {
     res.status(500);
@@ -171,7 +171,7 @@ router.patch("/books/dislike", async (req, res) => {
     }
   }
 
-  let { data, error } = await supabase.rpc("decrement", { book_id: bookId }).select(`*, user_vote (vote)`);
+  let { data, error } = await supabase.rpc("decrement", { book_id: bookId }).select(`*, user_vote (user_id, vote)`);
 
   if (error) {
     res.status(500);
