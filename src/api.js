@@ -25,7 +25,7 @@ const supabase = createClient(
  * Get all books
  */
 router.get("/books", async (req, res) => {
-  let { data, error } = await supabase.from("books").select("*").order("likeCount", {ascending: false});
+  let { data, error } = await supabase.from("books").select(`*, user_vote (vote)`).order("likeCount", {ascending: false});
 
   if (error) {
     res.status(500);
